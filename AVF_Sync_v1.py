@@ -14,7 +14,7 @@ from AppKit import (NSApplication, NSWindow, NSMakeRect,
                     NSWindowStyleMaskResizable, NSBackingStoreBuffered, NSApp,
                     NSScreen, NSWindowCollectionBehaviorFullScreenPrimary,
                     NSColor, NSViewWidthSizable, NSViewHeightSizable,
-                    NSRunLoop, NSRunLoopCommonModes)
+                    NSRunLoop, NSRunLoopCommonModes, NSWindowStyleMaskBorderless, NSWindowStyleMaskBorderless, NSMainMenuWindowLevel)
 from AVFoundation import AVAsset, AVPlayerItem, AVPlayer, AVLayerVideoGravityResizeAspect
 from AVKit import AVPlayerView
 import CoreMedia
@@ -25,8 +25,8 @@ from PyObjCTools import AppHelper
 # ---------------------------------------------------------
 # screen_index: 0=メイン, 1=外部1, 2=外部2 ...（get_device_ids.pyで確認した番号）
 PLAYER_CONFIGS = [
-    {"file": "20260515ゲネプロ_file1.mp4", "screen_index": 1, "audio_uid": "BuiltInSpeakerDevice"},
-    {"file": "20260515ゲネプロ_file2.mp4", "screen_index": 2, "audio_uid": "BuiltInHeadphoneOutputDevice" },
+    {"file": "20260515ゲネプロ_file1.mp4", "screen_index": 0, "audio_uid": "AppleUSBAudioEngine:Focusrite:Scarlett Solo USB:Y7QPRR9191C0F1:1,2"},
+    {"file": "20260515ゲネプロ_file2.mp4", "screen_index": 1, "audio_uid": "AppleUSBAudioEngine:Generic:TX 384kb Hifi Type_C Audio:201701110001:1" },
     # {"file": "file3.mov", "screen_index": 2, "audio_uid": ""}, # 音声なしorデフォルト
     # {"file": "file4.mov", "screen_index": 3, "audio_uid": ""},
 ]
@@ -93,22 +93,26 @@ class AppDelegate(NSObject):
 
     def create_window(self, title, screen_index, player):
         screens = NSScreen.screens()
-        # 指定IDがない場合はメイン画面にフォールバック
         target_screen = screens[screen_index] if len(screens) > screen_index else screens[0]
         
+        # 🌟 変更点: 画面のフレームサイズをそのまま使い、枠なし(Borderless)にする
         win = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, 1280, 720),
-            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable,
+            target_screen.frame(),
+            NSWindowStyleMaskBorderless,
             NSBackingStoreBuffered, False
         )
         win.setTitle_(title)
-        win.setCollectionBehavior_(NSWindowCollectionBehaviorFullScreenPrimary)
         win.setBackgroundColor_(NSColor.blackColor())
-        win.setFrameOrigin_(target_screen.frame().origin)
         
+        # 🌟 変更点: 別のアプリが来ても隠れないようにウインドウレベルを上げる（オプション）
+        # 通常のアプリより少し手前に配置します
+        win.setLevel_(NSMainMenuWindowLevel + 1) # ※必要ならこの行を有効化（NSAppKitのインポートが必要）
+
         view = AVPlayerView.alloc().initWithFrame_(win.contentView().bounds())
         view.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
         view.setVideoGravity_(AVLayerVideoGravityResizeAspect)
+        # 再生コントロールを非表示にする場合は以下を追加
+        # view.setControlsStyle_(1) # AVPlayerViewControlsStyleNone
         view.setPlayer_(player)
             
         win.contentView().addSubview_(view)
@@ -116,17 +120,15 @@ class AppDelegate(NSObject):
         return win
 
     def checkReady_(self, timer):
-        # 全てのプレイヤーがReadyToPlayになるまで待機
         if all(item.status() == 1 for item in self.items):
             timer.invalidate()
-            print("\n📺 全画面フルスクリーン化中...")
-            for win in self.windows:
-                win.toggleFullScreen_(None)
-
-            # 自動再生用のタイマー(sync_timer)を削除し、待機状態にする
-            print("✨ スタンバイ完了！ [Space] キーを押して再生を開始してください。\n")
             
-            # ※ここで状態表示を初期化しておきます
+            # 🌟 変更点: toggleFullScreen_ はもう呼ばない（最初から画面サイズになっているため）
+            # print("\n📺 全画面フルスクリーン化中...")
+            # for win in self.windows:
+            #     win.toggleFullScreen_(None)
+
+            print("✨ スタンバイ完了！ [Space] キーを押して再生を開始してください。\n")
             print("\r⏸️ 待機中... (再生: Space, シーク: S)       ", end="", flush=True)
 
     def togglePlayPause_(self, sender):
