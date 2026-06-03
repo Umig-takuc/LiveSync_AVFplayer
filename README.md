@@ -6,7 +6,7 @@ simultaneous multi file player using AVFoundation
 - その際モニターのIDとスピーカーのUIDが必要なので、先に`getDeviceIDs.py`を実行しIDをメモする
 
 ## 2. Notice
-- 特になし
+- `caffeinate -d`により画面の終了やサインアウトを防止することを推奨する
 
 ## Version
 ### Version 1.0
