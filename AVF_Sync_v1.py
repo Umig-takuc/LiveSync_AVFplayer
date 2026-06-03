@@ -23,20 +23,36 @@ from PyObjCTools import AppHelper
 # ---------------------------------------------------------
 # 1. 設定項目（ここに必要な分だけ画面を追加してください）
 # ---------------------------------------------------------
-# screen_index: 0=メイン, 1=外部1, 2=外部2 ...（get_device_ids.pyで確認した番号）
-PLAYER_CONFIGS = [
-    {"file": "20260515ゲネプロ_file1.mp4", "screen_index": 0, "audio_uid": "AppleUSBAudioEngine:Focusrite:Scarlett Solo USB:Y7QPRR9191C0F1:1,2"},
-    {"file": "20260515ゲネプロ_file2.mp4", "screen_index": 1, "audio_uid": "AppleUSBAudioEngine:Generic:TX 384kb Hifi Type_C Audio:201701110001:1" },
-    # {"file": "file3.mov", "screen_index": 2, "audio_uid": ""}, # 音声なしorデフォルト
-    # {"file": "file4.mov", "screen_index": 3, "audio_uid": ""},
-]
-
-# シークポイント設定 (config.ini)
 CONFIG_FILE = "config.ini"
+
+# 初期化
+PLAYER_CONFIGS = []
 seek_points = {}
+
 if os.path.exists(CONFIG_FILE):
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE, encoding='utf-8')
+
+    # ---------------------------------------------------------
+    # 1. プレイヤー設定の読み込み
+    # ---------------------------------------------------------
+    # "Player_" から始まるセクションを順番に探してリスト化
+    for section in config.sections():
+        if section.startswith("Player_"):
+            file_path = config.get(section, "file", fallback="")
+            screen_index = config.getint(section, "screen_index", fallback=0)
+            audio_uid = config.get(section, "audio_uid", fallback="")
+            
+            if file_path:  # ファイルが設定されている場合のみ追加
+                PLAYER_CONFIGS.append({
+                    "file": file_path,
+                    "screen_index": screen_index,
+                    "audio_uid": audio_uid
+                })
+
+    # ---------------------------------------------------------
+    # 2. シークポイント設定の読み込み
+    # ---------------------------------------------------------
     if config.has_section('SeekPoints'):
         for key, value in config.items('SeekPoints'):
             try:
@@ -45,7 +61,8 @@ if os.path.exists(CONFIG_FILE):
                     title = parts[0].strip(' "')
                     h, m, s, f = map(int, parts[1].strip().split(':'))
                     seek_points[key] = {'title': title, 'sec': h*3600 + m*60 + s + (f/60.0)}
-            except: pass
+            except: 
+                pass
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
